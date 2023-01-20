@@ -206,6 +206,8 @@ struct NLLSoftmax {
     tsc_t t0 = get_tsc();
     switch (opt.algo) {
       /* add case for your implementations here */
+    case algo_cpu_para:
+      forward_cpu_base(x, t, training); break;
     case algo_cpu_base:
       forward_cpu_base(x, t, training); break;
     case algo_cuda_base:
@@ -312,6 +314,8 @@ struct NLLSoftmax {
     tsc_t t0 = get_tsc();
     switch (opt.algo) {
       /* add case for your implementations here */
+    case algo_cpu_para:
+      backward_cpu_base(gy, t); break;
     case algo_cpu_base:
       backward_cpu_base(gy, t); break;
     case algo_cuda_base:

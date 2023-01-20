@@ -174,6 +174,8 @@ struct Dropout {
     tsc_t t0 = get_tsc();
     switch (opt.algo) {
       /* add case for your implementations here */
+    case algo_cpu_para:
+      forward_cpu_base(x, training); break;
     case algo_cpu_base:
       forward_cpu_base(x, training); break;
     case algo_cuda_base:
@@ -285,6 +287,8 @@ struct Dropout {
     tsc_t t0 = get_tsc();
     switch (opt.algo) {
       /* add case for your implementations here */
+    case algo_cpu_para:
+      backward_cpu_base(gy); break;
     case algo_cpu_base:
       backward_cpu_base(gy); break;
     case algo_cuda_base:
