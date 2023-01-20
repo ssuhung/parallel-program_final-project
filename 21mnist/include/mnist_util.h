@@ -14,7 +14,9 @@
 #include <stdint.h>
 #include <time.h>
 #include <unistd.h>
-#include <ieee754.h>
+// #include <ieee754.h>
+
+#define HOST_NAME_MAX 64
 
 #if __CUDACC__
 #include "cuda_util.h"
@@ -412,17 +414,21 @@ struct rnd_gen_t {
    */
   __device__ __host__
   double rand01() {
-    union ieee754_double temp;
     /* Compute next state.  */
     next();
     /* Construct a positive double with the 48 random bits distributed over
        its fractional part so the resulting FP number is [0.0,1.0).  */
-    temp.ieee.negative = 0;
-    temp.ieee.exponent = IEEE754_DOUBLE_BIAS;
-    temp.ieee.mantissa0 = (x >> 28) & ((1UL << 20) - 1); /* 20 bit */
-    temp.ieee.mantissa1 = (x & ((1UL << 28) - 1)) << 4;
+    uint64_t mantissa = x << 4;
+    double temp = 0.0;
+
+    for(int i = 1; i <= 52; i++){
+      if((mantissa >> (52 - i)) & 1){
+        temp += pow(2, -i);
+      }
+    }
+    
     /* Please note the lower 4 bits of mantissa1 are always 0.  */
-    return temp.d - 1.0;
+    return temp;
   }
   /**
      @brief return a long between 0 to 2^31 - 1
