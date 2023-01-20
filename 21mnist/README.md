@@ -621,7 +621,7 @@ As I mentioned above, functions you will primarily be working on are `forward` a
 
 The member function named `forward` is the entry point of the forwarding phase.  It only executes a switch statement to decide which implementation to use.
 
-```
+``` c++
   tensor<real,maxB,OC,H-K+1,W-K+1>& forward(tensor<real,maxB,IC,H,W>& x, int training) {
     log_start_fun(lgr);
     tsc_t t0 = get_tsc();
@@ -646,7 +646,7 @@ The member function named `forward` is the entry point of the forwarding phase. 
 
 The above code, depending on the algorithm chosen at the command line (-a option), calls either `forward_cpu_base` or `forward_cuda_base`.  The former simply calls another function, `forward_base`, which does the real job.
 
-```
+``` c++
   void forward_cpu_base(tensor<real,maxB,IC,H,W>& x, int training) {
     forward_base(x, training);
   }
@@ -654,7 +654,7 @@ The above code, depending on the algorithm chosen at the command line (-a option
 
 The latter calls into GPU.  Since `nvcc` does not allow a class member function to be a global function (a GPU function callable from a host), we need to define a global function outside the class (`forward_cuda_base_global`), which then calls back a member function (`forward_cuda_base_device`).  This is the baseline implementation of `forward_cuda_base`.
 
-```
+``` c++
   void forward_cuda_base(tensor<real,maxB,IC,H,W>& x, int training) {
 #if __CUDACC__
     launch_and_sync((forward_cuda_base_global<<<1,1>>>(dev, x.dev, training)));
@@ -668,7 +668,7 @@ The latter calls into GPU.  Since `nvcc` does not allow a class member function 
 
 The global function, `forward_cuda_base_global`, is defined outside the class as follows.  Note that it launches only a single CUDA-thread, something you definitely want to do differently in your high performance version.
 
-```
+``` c++
 template<typename T, typename I>
 __global__ void forward_cuda_base_global(T* dev, I* x_dev, int training) {
   /* call the member function */
@@ -678,7 +678,7 @@ __global__ void forward_cuda_base_global(T* dev, I* x_dev, int training) {
 
 The member function `forward_cuda_base_device` actually calls the same forward_base function that does the real job.
 
-```
+``` c++
   __device__
   void forward_cuda_base_device(tensor<real,maxB,IC,H,W>& x, int training) {
     forward_base(x, training);
@@ -697,7 +697,7 @@ Before starting the real work, there are some work for preparation.
  * Come up with a name of the new implementation.  Let's say it is `cpu_awesome` (in reality, you want to have a name that better represents what it does, like `cpu_simd`).
 
  * Add a new symbol to the enum `algo_t` defined in `mnist_util.h`
-``` 
+```  c++
 typedef enum {
   algo_cpu_base,
   algo_cuda_base,
@@ -711,7 +711,7 @@ typedef enum {
 
  * Change the `parse_algo` function right below it so that it recognizes the new name.  Obviously, the baseline code recognizes only "cpu_base" and "cuda_base".  You simply add an appropriate "else if" branch to handle your name.
 
-```
+``` c++
 algo_t parse_algo(const char * s) {
   if (strcmp(s, "cpu_base") == 0) {
     return algo_cpu_base;
@@ -727,7 +727,7 @@ algo_t parse_algo(const char * s) {
 
  * You might also need to change the function `algo_is_cuda` so that the program correctly recognizes whether it is a CUDA algorithm.  By default, it simply assumes all and only names starting with "cuda" are CUDA algorithms.  You need to change this only when your algorithm name does not conform to this convention (e.g., a CUDA algorithm named "v100_only").  It will be a good idea to stick to the convention rather than modifying this function.
 
-```
+``` c++
 static int algo_is_cuda(const char * s, algo_t a) {
   (void)a;
   if (strncmp(s, "cuda", 4) == 0) {
@@ -742,7 +742,7 @@ At this point, the program at least recognizes your algorithm and calls GPU base
 
 Now you are ready to add a real implementation.  Thanks to the structure just mentioned, you can do so incrementally (you do not have to implement all functions to get your version used).  To start off, let's say you want to implement a `forward` function of `Convolution2D` class.  The first thing you need to do is to add an appropriate case in the switch statement.
 
-```
+``` c++
   tensor<real,maxB,OC,H-K+1,W-K+1>& forward(tensor<real,maxB,IC,H,W>& x, int training) {
     log_start_fun(lgr);
     tsc_t t0 = get_tsc();
@@ -772,14 +772,14 @@ Your real job is, of course, to implement `forward_cpu_awesome` function.  Use S
 
 If you work on CUDA implementation, you need to implement two functions.  Let's say your algorithm name is `cuda_awesome`.  After adding another case in the switch statement like this
 
-```
+``` c++
     case algo_cuda_awesome:
       forward_cuda_awesome(x); break;
 ```
 
 your `forward_cuda_awesome` function will launch a global function with a more sensible value of the thread block size.
 
-```
+``` c++
   void forward_cuda_awesome(array4<maxB,IC,H,W>& x) {
     int block_sz = ...;
     int num_blocks = ...;
@@ -789,7 +789,7 @@ your `forward_cuda_awesome` function will launch a global function with a more s
 
 Next you define `forward_cuda_awesome_global` function outside the class.  You may want to copy the template definition for `forward_cuda_base_global` in `cuda_util.h`.  This will be a boilerplate code.
 
-```
+``` c++
 template<typename T, typename I>
 __global__ void forward_cuda_awesome_global(T* dev, I* x_dev, int training) {
   /* call the member function */
@@ -801,7 +801,7 @@ Finally, you define `forward_ultra_fast_device` member function, which does the 
 
 In `forward_cuda_base_device` function that is supposed to do a real job, you compute the output and put them in the 'y' variable, which is already defined for you as a member field.  This convention is used throughout the program.  All classes have a member field named 'y' to which you should put the results.  
 
-```
+``` c++
   __device__ __host__ 
   void forward_base(tensor<real,maxB,IC,H,W>& x, int training) {
     (void)training;
@@ -835,13 +835,13 @@ There is one thing to note here.  The input typically is an array (single- or mu
 
 In this example, x.n0 has the actual number of rows in the array.  Thus,
  * the outermost loop iterates x.n0 number of times rather than maxB times.
-```
+``` c++
     idx_t B = x.n0;             // batch size
       ...
     for (idx_t s = 0; s < B; s++) {       // for each sample
 ```
  * it also sets the actual number of rows in the output y, by doing
-```
+``` c++
     y.set_n0(B);
 ```
 
